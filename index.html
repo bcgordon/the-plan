@@ -29,6 +29,13 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+[data-theme="light"],:root{
+  --text: #1a1a1a;--text-muted: #6b7280;--text-hint: #9ca3af;
+  --border: rgba(0,0,0,0.12);--border-mid: rgba(0,0,0,0.2);
+  --bg: #faf7f2;--bg-surface: #f2ece0;--bg-card: #fffdf8;
+  --accent-light: #E1F5EE;--accent-mid: #9FE1CB;--accent-dark: #0F6E56;
+}
+[data-theme="dark"],
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #f0f0ee; --text-muted: #9ca3af; --text-hint: #6b7280;
@@ -191,7 +198,7 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
 .color-swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
 .swatch{width:44px;height:44px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.15s}
 .swatch.selected{border-color:var(--text)}
-.signout-btn{margin-top:32px;width:100%;padding:12px;border-radius:var(--radius-lg);border:0.5px solid var(--border-mid);background:transparent;color:var(--text-muted);font-size:14px;font-family:inherit;cursor:pointer}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--bg-card);margin-top:8px}.toggle-label{font-size:15px;color:var(--text)}.toggle{position:relative;width:48px;height:28px;flex-shrink:0}.toggle input{opacity:0;width:0;height:0}.toggle-slider{position:absolute;inset:0;background:var(--border-mid);border-radius:14px;cursor:pointer;transition:background 0.2s}.toggle-slider:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:white;border-radius:50%;transition:transform 0.2s}.toggle input:checked+.toggle-slider{background:var(--accent)}.toggle input:checked+.toggle-slider:before{transform:translateX(20px)}.signout-btn{margin-top:32px;width:100%;padding:12px;border-radius:var(--radius-lg);border:0.5px solid var(--border-mid);background:transparent;color:var(--text-muted);font-size:14px;font-family:inherit;cursor:pointer}
 </style>
 </head>
 <body>
@@ -307,7 +314,9 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
     <!-- SETTINGS -->
     <div id="settings-view">
       <div class="content">
-        <div class="section-label" style="margin-top:0">Accent color</div>
+        <div class="section-label" style="margin-top:0">Appearance</div>
+        <div class="toggle-row"><span class="toggle-label">Dark mode</span><label class="toggle"><input type="checkbox" id="dark-toggle" onchange="toggleDarkMode(this.checked)" /><span class="toggle-slider"></span></label></div>
+        <div class="section-label">Accent color</div>
         <div class="color-swatches" id="color-swatches"></div>
         <button class="signout-btn" onclick="signOut()">Sign out of this device</button>
       </div>
@@ -756,10 +765,26 @@ function showView(v){
   if(v==='history')renderCal();
   if(v==='stats')renderStats();
   if(v==='customize')renderCustomize();
+  if(v==='settings'){const t=document.getElementById('dark-toggle');if(t)t.checked=gl('theme')==='dark';}
 }
 
+function applyTheme(dark){
+  if(dark){document.documentElement.setAttribute('data-theme','dark');}
+  else{document.documentElement.removeAttribute('data-theme');}
+  const t=document.getElementById('dark-toggle');
+  if(t)t.checked=dark;
+}
+function toggleDarkMode(on){
+  sl('theme',on?'dark':'light');
+  applyTheme(on);
+}
+function initTheme(){
+  const saved=gl('theme');
+  if(saved){applyTheme(saved==='dark');}
+}
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js');});}
 
+initTheme();
 const savedCode=gl('journal_code');
 if(savedCode){initApp(savedCode);}
 </script>
