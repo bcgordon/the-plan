@@ -185,7 +185,6 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
         <button class="nav-tab active" id="tab-today" onclick="showView('today')">Today</button>
         <button class="nav-tab" id="tab-history" onclick="showView('history')">History</button>
         <button class="nav-tab" id="tab-stats" onclick="showView('stats')">Stats</button>
-        <button class="nav-tab" id="tab-customize" onclick="showView('customize')">Customize</button>
         <button class="nav-tab" id="tab-settings" onclick="showView('settings')">Settings</button>
         <button class="nav-tab" id="tab-about" onclick="showView('about')">About</button>
       </div>
@@ -252,25 +251,6 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
       </div>
     </div>
 
-    <!-- CUSTOMIZE -->
-    <div id="customize-view" class="view block">
-      <div class="content">
-        <div class="section-label" style="margin-top:0">Daily checklist items</div>
-        <div class="cust-list" id="cust-checklist"></div>
-        <div class="cust-add-row">
-          <input id="cust-check-input" type="text" placeholder="Add checklist item..." />
-          <button class="add-btn" onclick="custAddCheck()">+</button>
-        </div>
-        <div class="section-label">Focus areas</div>
-        <div id="cust-focus-areas"></div>
-        <div class="cust-add-row" style="margin-top:4px">
-          <input id="cust-focus-input" type="text" placeholder="Add focus area..." />
-          <button class="add-btn" onclick="custAddFocus()">+</button>
-        </div>
-        <button class="cust-save-btn" id="cust-save-btn" onclick="saveSettings()">Save changes</button>
-      </div>
-    </div>
-
     <!-- SETTINGS -->
     <div id="settings-view" class="view block">
       <div class="content">
@@ -284,6 +264,22 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
         </div>
         <div class="section-label">Accent color</div>
         <div class="color-swatches" id="color-swatches"></div>
+
+        <div class="section-label">Customize checklist</div>
+        <div class="cust-list" id="cust-checklist"></div>
+        <div class="cust-add-row">
+          <input id="cust-check-input" type="text" placeholder="Add checklist item..." />
+          <button class="add-btn" onclick="custAddCheck()">+</button>
+        </div>
+
+        <div class="section-label">Customize focus areas</div>
+        <div id="cust-focus-areas"></div>
+        <div class="cust-add-row" style="margin-top:4px">
+          <input id="cust-focus-input" type="text" placeholder="Add focus area..." />
+          <button class="add-btn" onclick="custAddFocus()">+</button>
+        </div>
+        <button class="cust-save-btn" id="cust-save-btn" onclick="saveSettings()">Save changes</button>
+
         <button class="signout-btn" onclick="signOut()">Sign out of this device</button>
       </div>
     </div>
@@ -297,19 +293,15 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
         <div class="section-label">Getting started</div>
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
           <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
-            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">1 — Get an access code</div>
-            <div style="font-size:13px;color:var(--text-muted);line-height:1.6">You need an access code to sign in. Ask the person who shared this app with you for a code. Each code is yours — your journal data is private to your code.</div>
-          </div>
-          <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
-            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">2 — Install on your phone</div>
+            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">1 — Install on your phone</div>
             <div style="font-size:13px;color:var(--text-muted);line-height:1.6">Open this app in Safari (iPhone) or Chrome (Android). Tap the share icon and choose <em>Add to Home Screen</em>. The Plan will appear as a full-screen app on your home screen.</div>
           </div>
           <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
-            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">3 — Make it yours</div>
+            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">2 — Make it yours</div>
             <div style="font-size:13px;color:var(--text-muted);line-height:1.6">Go to the <strong style="color:var(--text)">Customize</strong> tab to set up your own daily checklist items and focus areas. Your customizations are saved to your code and sync across all your devices.</div>
           </div>
           <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
-            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">4 — Use it daily</div>
+            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">3 — Use it daily</div>
             <div style="font-size:13px;color:var(--text-muted);line-height:1.6">Open The Plan each day, check off your habits, log your activities, and hit <strong style="color:var(--text)">Save today</strong>. Your entry syncs to the cloud instantly.</div>
           </div>
         </div>
@@ -604,12 +596,12 @@ function showView(v){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   const el=document.getElementById(v+'-view');
   el.classList.add('active');
-  document.getElementById('tab-'+v).classList.add('active');
+  document.getElementById('tab-'+v) && document.getElementById('tab-'+v).classList.add('active');
   document.getElementById('progress-wrap').style.display=v==='today'?'block':'none';
   if(v==='history')renderCal();
   if(v==='stats')renderStats();
-  if(v==='customize')renderCustomize();
-  if(v==='settings'){const t=document.getElementById('dark-toggle');if(t)t.checked=gl('theme')==='dark';}
+  if(v==='settings'){renderCustomize();const t=document.getElementById('dark-toggle');if(t)t.checked=gl('theme')==='dark';}
+  if(v==='about'){}
 }
 
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js');});}
