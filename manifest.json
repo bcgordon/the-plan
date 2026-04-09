@@ -1,6 +1,6 @@
 {
-  "name": "Daily Journal",
-  "short_name": "Journal",
+  "name": "The Plan",
+  "short_name": "The Plan",
   "description": "My daily checklist and focus journal",
   "start_url": "./index.html",
   "display": "standalone",
