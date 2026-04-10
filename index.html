@@ -560,7 +560,7 @@ function renderStats(){
 }
 
 function renderCustomize(){
-  custSettings=JSON.parse(JSON.stringify(settings));
+  if(!custSettings) custSettings=JSON.parse(JSON.stringify(settings));
   const cl=document.getElementById('cust-checklist');cl.innerHTML='';
   custSettings.checklist.forEach((label,i)=>{const row=document.createElement('div');row.className='cust-item';row.innerHTML='<input type="text" value="'+label+'" /><button class="del-btn" onclick="custDelCheck('+i+')">&#215;</button>';row.querySelector('input').addEventListener('input',e=>{custSettings.checklist[i]=e.target.value;});cl.appendChild(row);});
   const fa=document.getElementById('cust-focus-areas');fa.innerHTML='';
@@ -575,9 +575,9 @@ function renderCustFocusBlock(area,i){
   block.innerHTML='<div class="focus-area-header"><input type="text" value="'+area.name+'" onchange="custSettings.focusAreas['+i+'].name=this.value" /><select class="focus-type-select" onchange="custSettings.focusAreas['+i+'].type=this.value;renderCustomize()">'+typeOptions+'</select><button class="del-btn" onclick="custDelFocus('+i+')">&#215;</button></div>'+itemsHtml;
   fa.appendChild(block);
 }
-function custAddCheck(){const inp=document.getElementById('cust-check-input');const v=inp.value.trim();if(!v)return;custSettings.checklist.push(v);const i=custSettings.checklist.length-1;const row=document.createElement('div');row.className='cust-item';row.innerHTML='<input type="text" value="'+v+'" /><button class="del-btn" onclick="custDelCheck('+i+')">&#215;</button>';row.querySelector('input').addEventListener('input',e=>{custSettings.checklist[i]=e.target.value;});document.getElementById('cust-checklist').appendChild(row);inp.value='';}
+function custAddCheck(){const inp=document.getElementById('cust-check-input');const v=inp.value.trim();if(!v)return;custSettings.checklist.push(v);inp.value='';renderCustomize();}
 function custDelCheck(i){custSettings.checklist.splice(i,1);renderCustomize();}
-function custAddFocus(){const inp=document.getElementById('cust-focus-input');const v=inp.value.trim();if(!v)return;custSettings.focusAreas.push({name:v,type:'tasks'});renderCustFocusBlock(custSettings.focusAreas[custSettings.focusAreas.length-1],custSettings.focusAreas.length-1);inp.value='';}
+function custAddFocus(){const inp=document.getElementById('cust-focus-input');const v=inp.value.trim();if(!v)return;custSettings.focusAreas.push({name:v,type:'tasks'});inp.value='';renderCustomize();}
 function custDelFocus(i){custSettings.focusAreas.splice(i,1);renderCustomize();}
 function custAddFocusItem(i){const inp=document.getElementById('cust-fa-item-input-'+i);const v=inp.value.trim();if(!v)return;if(!custSettings.focusAreas[i].items)custSettings.focusAreas[i].items=[];custSettings.focusAreas[i].items.push(v);renderCustomize();}
 function custDelFocusItem(i,j){custSettings.focusAreas[i].items.splice(j,1);renderCustomize();}
@@ -600,7 +600,7 @@ function showView(v){
   document.getElementById('progress-wrap').style.display=v==='today'?'block':'none';
   if(v==='history')renderCal();
   if(v==='stats')renderStats();
-  if(v==='settings'){renderCustomize();const t=document.getElementById('dark-toggle');if(t)t.checked=gl('theme')==='dark';}
+  if(v==='settings'){custSettings=null;renderCustomize();const t=document.getElementById('dark-toggle');if(t)t.checked=gl('theme')==='dark';}
   if(v==='about'){}
 }
 
