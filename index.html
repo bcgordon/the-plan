@@ -222,9 +222,10 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
           <button class="mood-btn" data-mood="5" onclick="selectMood(5)"><span style="font-size:22px">😄</span><span class="mlabel">great</span></button>
         </div>
         <div class="section-label" style="margin-top:16px">Big Frog</div>
-        <div class="big-frog-card">
+        <div class="big-frog-card" id="big-frog-card">
           <div class="big-frog-emoji">🐸</div>
           <input class="big-frog-input" id="big-frog-input" type="text" placeholder="Biggest Task for Today" autocomplete="off" />
+          <div class="check-circle" id="big-frog-check" onclick="toggleBigFrog()" style="flex-shrink:0"><div class="checkmark"></div></div>
         </div>
         <div class="section-label">Daily checklist</div>
         <div class="checklist" id="checklist-items"></div>
@@ -397,7 +398,7 @@ const DEFAULT_SETTINGS={checklist:['Sunshine','Some fitness','Vinyl / iPod','Res
 const now=new Date();
 const todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 let userCode=null,settings=JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),custSettings=null;
-let state={checks:{},focusData:{},mood:0,note:'',bigFrog:''};
+let state={checks:{},focusData:{},mood:0,note:'',bigFrog:'',bigFrogDone:false};
 let calYear=now.getFullYear(),calMonth=now.getMonth(),selectedDay=null,allEntries=[];
 
 function gl(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
@@ -603,6 +604,22 @@ function setupTaskDrag(el,idx){
     document.addEventListener('touchend',onEnd);
   }
 }
+function applyBigFrogDone(){
+  const card=document.getElementById('big-frog-card');
+  const circle=document.getElementById('big-frog-check');
+  const inp=document.getElementById('big-frog-input');
+  if(!card)return;
+  if(state.bigFrogDone){
+    circle.style.background='var(--accent)';circle.style.borderColor='var(--accent)';
+    card.style.borderColor='var(--accent-mid)';card.style.background='var(--accent-light)';
+    inp.style.textDecoration='line-through';inp.style.color='var(--accent-dark)';
+  }else{
+    circle.style.background='';circle.style.borderColor='';
+    card.style.borderColor='';card.style.background='';
+    inp.style.textDecoration='';inp.style.color='';
+  }
+}
+function toggleBigFrog(){state.bigFrogDone=!state.bigFrogDone;applyBigFrogDone();}
 function selectMood(m){state.mood=m;document.querySelectorAll('.mood-btn').forEach(b=>b.classList.toggle('selected',parseInt(b.dataset.mood)===m));}
 function toggleCat(id){document.getElementById(id).classList.toggle('open');}
 document.getElementById('freewrite').addEventListener('input',e=>{state.note=e.target.value;});
@@ -610,7 +627,7 @@ document.getElementById('big-frog-input').addEventListener('input',e=>{state.big
 
 async function loadAllEntries(){try{const rows=await sbFetch('journal_entries?code=eq.'+encodeURIComponent(userCode)+'&select=date,data&order=date.desc');allEntries=rows||[];}catch(e){allEntries=[];}}
 function getEntry(dk){const row=allEntries.find(r=>r.date===dk);return row?row.data:null;}
-function loadToday(){const saved=getEntry(todayKey);if(saved){state=saved;if(!state.focusData)state.focusData={};if(!state.bigFrog)state.bigFrog='';selectMood(state.mood||0);document.getElementById('freewrite').value=state.note||'';document.getElementById('big-frog-input').value=state.bigFrog||'';}}
+function loadToday(){const saved=getEntry(todayKey);if(saved){state=saved;if(!state.focusData)state.focusData={};if(!state.bigFrog)state.bigFrog='';if(!state.bigFrogDone)state.bigFrogDone=false;selectMood(state.mood||0);document.getElementById('freewrite').value=state.note||'';document.getElementById('big-frog-input').value=state.bigFrog||'';applyBigFrogDone();}}
 
 async function saveEntry(){
   const btn=document.getElementById('save-btn');const status=document.getElementById('sync-status');
