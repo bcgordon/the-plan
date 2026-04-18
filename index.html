@@ -87,9 +87,22 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
 .add-btn{border:0.5px solid var(--border-mid);border-radius:var(--radius);background:transparent;padding:10px 14px;font-size:18px;color:var(--text-muted);cursor:pointer}
 .log-entry{font-size:14px;color:var(--text);padding:6px 0;border-bottom:0.5px solid var(--border)}
 .log-entry:last-of-type{border-bottom:none}
-.task-item{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;user-select:none;border-bottom:0.5px solid var(--border)}
+.task-item{display:flex;align-items:center;gap:10px;padding:7px 0;user-select:none;border-bottom:0.5px solid var(--border);touch-action:none}
 .task-item:last-of-type{border-bottom:none}
-.task-item.done .sub-label{color:var(--accent-dark);text-decoration:line-through;text-decoration-color:var(--accent-mid)}
+.task-item.done .task-label{color:var(--accent-dark);text-decoration:line-through;text-decoration-color:var(--accent-mid)}
+.task-drag{font-size:16px;color:var(--text-hint);cursor:grab;padding:0 2px;flex-shrink:0;line-height:1}
+.task-drag:active{cursor:grabbing}
+.task-label{font-size:14px;color:var(--text-muted);flex:1;cursor:pointer}
+.task-edit-input{flex:1;border:none;border-bottom:1px solid var(--accent);background:transparent;font-size:14px;font-family:inherit;color:var(--text);outline:none;padding:0}
+.task-del{border:none;background:transparent;color:var(--text-hint);font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;opacity:0;transition:opacity 0.15s}
+.task-item:hover .task-del{opacity:1}
+@media(hover:none){.task-del{opacity:0.4}}
+.task-item.dragging{opacity:0.4}
+.task-item.drag-over{border-top:2px solid var(--accent)}
+.big-frog-card{border-radius:var(--radius-lg);border:0.5px solid var(--border);background:var(--bg-card);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-top:12px}
+.big-frog-emoji{font-size:26px;flex-shrink:0}
+.big-frog-input{flex:1;border:none;background:transparent;font-size:15px;font-family:inherit;color:var(--text);outline:none;min-width:0}
+.big-frog-input::placeholder{color:var(--text-hint)}
 .freewrite{width:100%;border:0.5px solid var(--border);border-radius:var(--radius);padding:12px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg-card);outline:none;resize:none;line-height:1.6;min-height:100px}
 .freewrite:focus{border-color:var(--accent)}
 .save-wrap{padding:16px;border-top:0.5px solid var(--border);background:var(--bg)}
@@ -207,6 +220,11 @@ body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
           <button class="mood-btn" data-mood="3" onclick="selectMood(3)"><span style="font-size:22px">🙂</span><span class="mlabel">ok</span></button>
           <button class="mood-btn" data-mood="4" onclick="selectMood(4)"><span style="font-size:22px">😊</span><span class="mlabel">good</span></button>
           <button class="mood-btn" data-mood="5" onclick="selectMood(5)"><span style="font-size:22px">😄</span><span class="mlabel">great</span></button>
+        </div>
+        <div class="section-label" style="margin-top:16px">Big Frog</div>
+        <div class="big-frog-card">
+          <div class="big-frog-emoji">🐸</div>
+          <input class="big-frog-input" id="big-frog-input" type="text" placeholder="Biggest Task for Today" autocomplete="off" />
         </div>
         <div class="section-label">Daily checklist</div>
         <div class="checklist" id="checklist-items"></div>
@@ -379,7 +397,7 @@ const DEFAULT_SETTINGS={checklist:['Sunshine','Some fitness','Vinyl / iPod','Res
 const now=new Date();
 const todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 let userCode=null,settings=JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),custSettings=null;
-let state={checks:{},focusData:{},mood:0,note:''};
+let state={checks:{},focusData:{},mood:0,note:'',bigFrog:''};
 let calYear=now.getFullYear(),calMonth=now.getMonth(),selectedDay=null,allEntries=[];
 
 function gl(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
@@ -434,6 +452,7 @@ async function saveSettings(){
     const rows=await sbFetch('journal_settings?code=eq.'+encodeURIComponent(userCode)+'&select=code');
     if(rows&&rows.length>0){await sbFetch('journal_settings?code=eq.'+encodeURIComponent(userCode),{method:'PATCH',prefer:'return=minimal',body:JSON.stringify({data:settings})});}
     else{await sbFetch('journal_settings',{method:'POST',body:JSON.stringify({code:userCode,data:settings})});}
+    custSettings=null;
     btn.textContent='Saved ✓';btn.classList.add('saved');
     setTimeout(()=>{btn.textContent='Save changes';btn.classList.remove('saved');btn.disabled=false;},2000);
     renderTodayUI();
@@ -465,10 +484,11 @@ function renderTodayUI(){
     }else if(area.type==='checks'){
       bodyHtml=(area.items||[]).map(item=>'<div class="sub-check'+((fd.checks||[]).includes(item)?' done':'')+'" onclick="toggleAreaCheck(this,\''+item+'\','+idx+')"><div class="sub-box"><div class="sub-mark"></div></div><span class="sub-label">'+item+'</span></div>').join('');
     }else if(area.type==='tasks'){
-      bodyHtml='<div id="ftasks-'+idx+'">'+(fd.tasks||[]).map((t,ti)=>'<div class="task-item'+(t.done?' done':'')+'" onclick="toggleAreaTask(this,'+idx+','+ti+')"><div class="sub-box"><div class="sub-mark"></div></div><span class="sub-label">'+t.label+'</span></div>').join('')+'</div><div class="row-input"><input id="ftask-input-'+idx+'" type="text" placeholder="Add task..." /><button class="add-btn" onclick="addAreaTask('+idx+')">+</button></div>';
+      bodyHtml='<div id="ftasks-'+idx+'"></div><div class="row-input"><input id="ftask-input-'+idx+'" type="text" placeholder="Add task..." /><button class="add-btn" onclick="addAreaTask('+idx+')">+</button></div>';
     }
     card.innerHTML='<div class="cat-header" onclick="toggleCat(\'cat-focus-'+idx+'\')"><span class="cat-title">'+area.name+'</span><span class="cat-arrow">▾</span></div><div class="cat-body">'+bodyHtml+'</div>';
     fa.appendChild(card);
+    if(area.type==='tasks') renderTaskList(idx);
     const inp=card.querySelector('input');
     if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter'){if(area.type==='log')addLogEntry(idx);else if(area.type==='tags')addAreaTag(idx);else if(area.type==='tasks')addAreaTask(idx);}});
   });
@@ -484,15 +504,113 @@ function addLogEntry(idx){const inp=document.getElementById('flog-input-'+idx);c
 function toggleAreaTag(el,idx){el.classList.toggle('active');const v=el.textContent;const aKey='focus_'+idx;if(!state.focusData[aKey].tags)state.focusData[aKey].tags=[];if(el.classList.contains('active')){if(!state.focusData[aKey].tags.includes(v))state.focusData[aKey].tags.push(v);}else{state.focusData[aKey].tags=state.focusData[aKey].tags.filter(x=>x!==v);}}
 function addAreaTag(idx){const inp=document.getElementById('ftag-input-'+idx);const v=inp.value.trim();if(!v)return;const aKey='focus_'+idx;if(!state.focusData[aKey].tags)state.focusData[aKey].tags=[];if(!state.focusData[aKey].tags.includes(v))state.focusData[aKey].tags.push(v);const tag=document.createElement('div');tag.className='ftag active';tag.textContent=v;tag.onclick=()=>toggleAreaTag(tag,idx);document.getElementById('ftags-'+idx).appendChild(tag);inp.value='';}
 function toggleAreaCheck(el,item,idx){el.classList.toggle('done');const aKey='focus_'+idx;if(!state.focusData[aKey].checks)state.focusData[aKey].checks=[];if(el.classList.contains('done')){if(!state.focusData[aKey].checks.includes(item))state.focusData[aKey].checks.push(item);}else{state.focusData[aKey].checks=state.focusData[aKey].checks.filter(x=>x!==item);}}
-function addAreaTask(idx){const inp=document.getElementById('ftask-input-'+idx);const v=inp.value.trim();if(!v)return;const aKey='focus_'+idx;if(!state.focusData[aKey].tasks)state.focusData[aKey].tasks=[];const task={label:v,done:false};state.focusData[aKey].tasks.push(task);const ti=state.focusData[aKey].tasks.length-1;const el=document.createElement('div');el.className='task-item';el.innerHTML='<div class="sub-box"><div class="sub-mark"></div></div><span class="sub-label">'+v+'</span>';el.onclick=()=>toggleAreaTask(el,idx,ti);document.getElementById('ftasks-'+idx).appendChild(el);inp.value='';}
-function toggleAreaTask(el,idx,ti){el.classList.toggle('done');const aKey='focus_'+idx;if(state.focusData[aKey].tasks&&state.focusData[aKey].tasks[ti])state.focusData[aKey].tasks[ti].done=el.classList.contains('done');}
+function renderTaskList(idx){
+  const aKey='focus_'+idx;
+  const container=document.getElementById('ftasks-'+idx);
+  if(!container)return;
+  container.innerHTML='';
+  const tasks=state.focusData[aKey].tasks||[];
+  tasks.forEach((t,ti)=>{
+    const el=document.createElement('div');
+    el.className='task-item'+(t.done?' done':'');
+    el.dataset.ti=ti;
+    el.innerHTML='<div class="task-drag" title="Drag to reorder">⠿</div>'
+      +'<div class="sub-box"><div class="sub-mark"></div></div>'
+      +'<span class="task-label">'+t.label+'</span>'
+      +'<button class="task-del" onclick="deleteAreaTask('+idx+','+ti+')" title="Delete">×</button>';
+    const label=el.querySelector('.task-label');
+    const box=el.querySelector('.sub-box');
+    label.addEventListener('click',()=>startEditTask(el,idx,ti));
+    box.addEventListener('click',()=>{
+      el.classList.toggle('done');
+      state.focusData[aKey].tasks[ti].done=el.classList.contains('done');
+    });
+    setupTaskDrag(el,idx);
+    container.appendChild(el);
+  });
+}
+function startEditTask(el,idx,ti){
+  const aKey='focus_'+idx;
+  const label=el.querySelector('.task-label');
+  const cur=state.focusData[aKey].tasks[ti].label;
+  const inp=document.createElement('input');
+  inp.className='task-edit-input';inp.value=cur;
+  label.replaceWith(inp);inp.focus();inp.select();
+  function commit(){
+    const v=inp.value.trim()||cur;
+    state.focusData[aKey].tasks[ti].label=v;
+    renderTaskList(idx);
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){inp.blur();}if(e.key==='Escape'){inp.value=cur;inp.blur();}});
+}
+function deleteAreaTask(idx,ti){
+  const aKey='focus_'+idx;
+  state.focusData[aKey].tasks.splice(ti,1);
+  renderTaskList(idx);
+}
+function addAreaTask(idx){
+  const inp=document.getElementById('ftask-input-'+idx);const v=inp.value.trim();if(!v)return;
+  const aKey='focus_'+idx;
+  if(!state.focusData[aKey].tasks)state.focusData[aKey].tasks=[];
+  state.focusData[aKey].tasks.push({label:v,done:false});
+  inp.value='';
+  renderTaskList(idx);
+}
+function setupTaskDrag(el,idx){
+  const handle=el.querySelector('.task-drag');
+  const aKey='focus_'+idx;
+  let dragSrc=null;
+  handle.addEventListener('mousedown',startDrag);
+  handle.addEventListener('touchstart',startDrag,{passive:true});
+  function startDrag(e){
+    dragSrc=el;
+    el.classList.add('dragging');
+    const container=document.getElementById('ftasks-'+idx);
+    const onMove=e2=>{
+      const y=e2.touches?e2.touches[0].clientY:e2.clientY;
+      const items=[...container.querySelectorAll('.task-item:not(.dragging)')];
+      items.forEach(i=>i.classList.remove('drag-over'));
+      let target=null;
+      for(const item of items){
+        const r=item.getBoundingClientRect();
+        if(y<r.top+r.height/2){target=item;break;}
+      }
+      if(target)target.classList.add('drag-over');
+    };
+    const onEnd=e2=>{
+      el.classList.remove('dragging');
+      const container=document.getElementById('ftasks-'+idx);
+      const items=[...container.querySelectorAll('.task-item')];
+      let overEl=items.find(i=>i.classList.contains('drag-over'));
+      items.forEach(i=>i.classList.remove('drag-over'));
+      if(overEl&&overEl!==el){
+        const tasks=state.focusData[aKey].tasks;
+        const fromIdx=parseInt(el.dataset.ti);
+        const toIdx=parseInt(overEl.dataset.ti);
+        const [moved]=tasks.splice(fromIdx,1);
+        tasks.splice(toIdx,0,moved);
+        renderTaskList(idx);
+      }
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onEnd);
+      document.removeEventListener('touchmove',onMove);
+      document.removeEventListener('touchend',onEnd);
+    };
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onEnd);
+    document.addEventListener('touchmove',onMove,{passive:true});
+    document.addEventListener('touchend',onEnd);
+  }
+}
 function selectMood(m){state.mood=m;document.querySelectorAll('.mood-btn').forEach(b=>b.classList.toggle('selected',parseInt(b.dataset.mood)===m));}
 function toggleCat(id){document.getElementById(id).classList.toggle('open');}
 document.getElementById('freewrite').addEventListener('input',e=>{state.note=e.target.value;});
+document.getElementById('big-frog-input').addEventListener('input',e=>{state.bigFrog=e.target.value;});
 
 async function loadAllEntries(){try{const rows=await sbFetch('journal_entries?code=eq.'+encodeURIComponent(userCode)+'&select=date,data&order=date.desc');allEntries=rows||[];}catch(e){allEntries=[];}}
 function getEntry(dk){const row=allEntries.find(r=>r.date===dk);return row?row.data:null;}
-function loadToday(){const saved=getEntry(todayKey);if(saved){state=saved;if(!state.focusData)state.focusData={};selectMood(state.mood||0);document.getElementById('freewrite').value=state.note||'';}}
+function loadToday(){const saved=getEntry(todayKey);if(saved){state=saved;if(!state.focusData)state.focusData={};if(!state.bigFrog)state.bigFrog='';selectMood(state.mood||0);document.getElementById('freewrite').value=state.note||'';document.getElementById('big-frog-input').value=state.bigFrog||'';}}
 
 async function saveEntry(){
   const btn=document.getElementById('save-btn');const status=document.getElementById('sync-status');
@@ -549,7 +667,10 @@ function renderStats(){
   document.getElementById('stat-entries').textContent=entries.length;
   document.getElementById('stat-perfect').textContent=entries.filter(e=>settings.checklist.every(l=>{const k=l.toLowerCase().replace(/[^a-z0-9]/g,'_');return e.checks&&e.checks[k];})).length;
   document.getElementById('stat-avg').textContent=entries.length?Math.round(entries.reduce((s,e)=>s+settings.checklist.filter(l=>{const k=l.toLowerCase().replace(/[^a-z0-9]/g,'_');return e.checks&&e.checks[k];}).length,0)/entries.length):0;
-  let streak=0,d=new Date();while(true){const dk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(getEntry(dk)){streak++;d.setDate(d.getDate()-1);}else break;}
+  let streak=0,d=new Date();
+  const todayEntry=getEntry(todayKey);
+  if(!todayEntry){d.setDate(d.getDate()-1);}
+  while(true){const dk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(getEntry(dk)){streak++;d.setDate(d.getDate()-1);}else break;}
   document.getElementById('stat-streak').textContent=streak;
   const bars=document.getElementById('check-bars');bars.innerHTML='';
   settings.checklist.forEach(label=>{const key=label.toLowerCase().replace(/[^a-z0-9]/g,'_');const pct=entries.length?Math.round(entries.filter(e=>e.checks&&e.checks[key]).length/entries.length*100):0;bars.innerHTML+='<div class="bar-row"><span class="bar-label">'+label+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><span class="bar-pct">'+pct+'%</span></div>';});
@@ -571,8 +692,8 @@ function renderCustFocusBlock(area,i){
   const block=document.createElement('div');block.className='focus-area-block';block.id='cust-fa-'+i;
   const typeOptions=['log','tags','checks','tasks'].map(t=>'<option value="'+t+'"'+(area.type===t?' selected':'')+'>'+t+'</option>').join('');
   let itemsHtml='';
-  if(area.type==='tags'||area.type==='checks'){itemsHtml='<div class="cust-list" id="cust-fa-items-'+i+'">'+(area.items||[]).map((item,j)=>'<div class="cust-item"><input type="text" value="'+item+'" onchange="custSettings.focusAreas['+i+'].items['+j+']=this.value" /><button class="del-btn" onclick="custDelFocusItem('+i+','+j+')">&#215;</button></div>').join('')+'</div><div class="cust-add-row"><input id="cust-fa-item-input-'+i+'" type="text" placeholder="Add item..." /><button class="add-btn" onclick="custAddFocusItem('+i+')">+</button></div>';}
-  block.innerHTML='<div class="focus-area-header"><input type="text" value="'+area.name+'" onchange="custSettings.focusAreas['+i+'].name=this.value" /><select class="focus-type-select" onchange="custSettings.focusAreas['+i+'].type=this.value;renderCustomize()">'+typeOptions+'</select><button class="del-btn" onclick="custDelFocus('+i+')">&#215;</button></div>'+itemsHtml;
+  if(area.type==='tags'||area.type==='checks'){itemsHtml='<div class="cust-list" id="cust-fa-items-'+i+'">'+(area.items||[]).map((item,j)=>'<div class="cust-item"><input type="text" value="'+item+'" oninput="custSettings.focusAreas['+i+'].items['+j+']=this.value" /><button class="del-btn" onclick="custDelFocusItem('+i+','+j+')">&#215;</button></div>').join('')+'</div><div class="cust-add-row"><input id="cust-fa-item-input-'+i+'" type="text" placeholder="Add item..." /><button class="add-btn" onclick="custAddFocusItem('+i+')">+</button></div>';}
+  block.innerHTML='<div class="focus-area-header"><input type="text" value="'+area.name+'" oninput="custSettings.focusAreas['+i+'].name=this.value" /><select class="focus-type-select" oninput="custSettings.focusAreas['+i+'].type=this.value;renderCustomize()">'+typeOptions+'</select><button class="del-btn" onclick="custDelFocus('+i+')">&#215;</button></div>'+itemsHtml;
   fa.appendChild(block);
 }
 function custAddCheck(){const inp=document.getElementById('cust-check-input');const v=inp.value.trim();if(!v)return;custSettings.checklist.push(v);inp.value='';renderCustomize();}
@@ -598,9 +719,9 @@ function showView(v){
   el.classList.add('active');
   document.getElementById('tab-'+v) && document.getElementById('tab-'+v).classList.add('active');
   document.getElementById('progress-wrap').style.display=v==='today'?'block':'none';
-  if(v==='history')renderCal();
+  if(v==='history'){calYear=now.getFullYear();calMonth=now.getMonth();selectedDay=null;document.getElementById('past-entry-display').innerHTML='';renderCal();}
   if(v==='stats')renderStats();
-  if(v==='settings'){custSettings=null;renderCustomize();const t=document.getElementById('dark-toggle');if(t)t.checked=gl('theme')==='dark';}
+  if(v==='settings'){if(!custSettings)custSettings=JSON.parse(JSON.stringify(settings));renderCustomize();const t=document.getElementById('dark-toggle');if(t)t.checked=gl('theme')==='dark';}
   if(v==='about'){}
 }
 
